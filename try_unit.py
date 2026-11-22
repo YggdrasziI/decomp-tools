@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Compile one source file outside the build and score one function against the
+original.
+
+  python tools/common/try_unit.py <function> <piece> <source> [--full]
+
+The source is compiled with the `[try] compile` command of decomp.toml into an
+object next to it, then `<function>` is compared with the original object
+`[try] target` (objdiff, as asm_compare.py --objects). Prints the score, then only
+the differing lines (original left, ours right); --full prints every line.
+
+Neither the build nor the configuration is run or changed, so several of these can
+run at once. The source must be outside the repository: the object written next to
+it would otherwise land among the project's files.
+
+decomp.toml:
+
+    [try]
+    compile = "{cc} -c {flags} -Iinclude -Isrc -o {obj} {src}"
+    target = "build/{version}/obj/{piece}.o"
+
+Placeholders of `compile`: {cc} and {flags} (the `[compiler]` command and flags),
+{python} (this interpreter), {exe} (`.exe` on Windows, else empty), {src}, {obj},
+{version}. Of `target`: {version},
+{piece} (the name of the original piece that holds the function).
+"""
+
+import argparse
+import os
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+import decomp_config as config
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("function")
+    parser.add_argument("piece", help="original piece that holds the function ({piece} of [try] target)")
+    parser.add_argument("source", type=Path)
+    parser.add_argument("--full", action="store_true", help="print every line, not only the differing ones")
+    parser.add_argument("--version", default=config.DEFAULT_VERSION)
+    parser.add_argument("--flags", help="code generation flags instead of [compiler] flags")
+    parser.add_argument("--in-repo", action="store_true",
+                        help="accept a source inside the repository (its object is written next to it)")
+    args = parser.parse_args()
+
+    settings = config.CONFIG.get("try")
+    if not settings or "compile" not in settings or "target" not in settings:
+        sys.exit("decomp.toml: [try] needs `compile` and `target`")
+    src = args.source.resolve()
+    if not src.is_file():
+        sys.exit(f"{args.source}: not found")
+    if config.ROOT in src.parents and not args.in_repo:
+        sys.exit(f"{args.source} is inside the repository: work on a copy outside it "
+                 "(or pass --in-repo)")
+    obj = src.with_suffix(".o")
+    target = config.ROOT / settings["target"].format(version=args.version, piece=args.piece)
+    if not target.is_file():
+        sys.exit(f"original object not found: {target}")
+
+    cc, flags = config.compiler()
+    if args.flags is not None:
+        flags = args.flags.split()
+    many = {"{cc}": cc, "{flags}": flags}
+    one = {"{python}": sys.executable, "{src}": str(src), "{obj}": str(obj),
+           "{version}": args.version, "{exe}": ".exe" if os.name == "nt" else ""}
+    command = []
+    for token in shlex.split(settings["compile"]):
+        if token in many:
+            command += many[token]
+            continue
+        for key, value in one.items():
+            token = token.replace(key, value)
+        command.append(token)
+
+    obj.unlink(missing_ok=True)
+    res = subprocess.run(command, capture_output=True, text=True, cwd=config.ROOT)
+    if res.returncode or not obj.is_file():
+        print("COMPILE ERROR")
+        print((res.stdout + res.stderr)[-3000:])
+        return 1
+
+    diff = subprocess.run(
+        [sys.executable, str(config.TOOLS / "asm_compare.py"), "--objects", str(target), str(obj),
+         args.function], capture_output=True, text=True, cwd=config.ROOT)
+    if diff.returncode:
+        print((diff.stdout + diff.stderr).strip())
+        return 1
+    lines = diff.stdout.split("\n")
+    print(lines[0])
+    for line in lines[1:]:
+        if args.full or not line.startswith("  "):
+            print(line[:120])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
