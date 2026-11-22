@@ -18,6 +18,7 @@ Projects using it:
 
 - [mhfu-decomp](https://github.com/YggdrasziI/mhfu-decomp): Monster Hunter Freedom Unite (PSP)
 - [jd-tlf-decomp](https://github.com/YggdrasziI/jd-tlf-decomp): Jak and Daxter: The Lost Frontier (PSP)
+- [ts2-castaway-decomp](https://github.com/YggdrasziI/ts2-castaway-decomp): The Sims 2: Castaway (Nintendo DS)
 
 Setup
 =====
@@ -49,7 +50,7 @@ Tools
 | `report_diff.py` | Regression gate between two objdiff reports |
 | `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` in `decomp.toml`) |
 | `check_traces.py` | Pre-commit / CI guard against local paths, attribution trailers and private files |
-| `sha1.py` | Check the files of a sha1sum-format list |
+| `sha1.py` | Check the files of a sha1sum-format list, or one file against its first checksum (`-c`) |
 | `ninja_syntax.py` | Writer for `build.ninja` |
 | `decomp_config.py` | Settings read from `decomp.toml` |
 
