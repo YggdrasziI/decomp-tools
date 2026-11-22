@@ -19,9 +19,14 @@ decomp.toml:
     compile = "{cc} -c {flags} -Iinclude -Isrc -o {obj} {src}"
     target = "build/{version}/obj/{piece}.o"
 
+    [try.suffix_flags]                 # optional: {suffix_flags} by source suffix
+    ".c" = "-lang=c99"
+    ".cpp" = "-lang=c++"
+
 Placeholders of `compile`: {cc} and {flags} (the `[compiler]` command and flags),
-{python} (this interpreter), {exe} (`.exe` on Windows, else empty), {src}, {obj},
-{version}. Of `target`: {version},
+{suffix_flags} (the `[try.suffix_flags]` entry of the source's suffix, none if
+missing), {python} (this interpreter), {exe} (`.exe` on Windows, else empty), {src},
+{obj}, {version}. Of `target`: {version},
 {piece} (the name of the original piece that holds the function).
 """
 
@@ -64,7 +69,8 @@ def main():
     cc, flags = config.compiler()
     if args.flags is not None:
         flags = args.flags.split()
-    many = {"{cc}": cc, "{flags}": flags}
+    suffix_flags = settings.get("suffix_flags", {}).get(src.suffix, "").split()
+    many = {"{cc}": cc, "{flags}": flags, "{suffix_flags}": suffix_flags}
     one = {"{python}": sys.executable, "{src}": str(src), "{obj}": str(obj),
            "{version}": args.version, "{exe}": ".exe" if os.name == "nt" else ""}
     command = []
