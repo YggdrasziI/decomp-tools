@@ -19,6 +19,7 @@ Projects using it:
 - [mhfu-decomp](https://github.com/YggdrasziI/mhfu-decomp): Monster Hunter Freedom Unite (PSP)
 - [jd-tlf-decomp](https://github.com/YggdrasziI/jd-tlf-decomp): Jak and Daxter: The Lost Frontier (PSP)
 - [ts2-castaway-decomp](https://github.com/YggdrasziI/ts2-castaway-decomp): The Sims 2: Castaway (Nintendo DS)
+- [dqmj2-decomp](https://github.com/YggdrasziI/dqmj2-decomp): Dragon Quest Monsters: Joker 2 (Nintendo DS)
 
 Setup
 =====
