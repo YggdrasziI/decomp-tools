@@ -17,6 +17,7 @@ of a project, next to the tools of its platform (for PSP:
 Projects using it:
 
 - [mhfu-decomp](https://github.com/YggdrasziI/mhfu-decomp): Monster Hunter Freedom Unite (PSP)
+- [jd-tlf-decomp](https://github.com/YggdrasziI/jd-tlf-decomp): Jak and Daxter: The Lost Frontier (PSP)
 
 Setup
 =====
