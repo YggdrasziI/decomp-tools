@@ -52,6 +52,14 @@ Tools
 | `ninja_syntax.py` | Writer for `build.ninja` |
 | `decomp_config.py` | Settings read from `decomp.toml` |
 
+Matching notes
+==============
+
+[`docs/`](docs/README.md) holds matching notes per compiler (Metrowerks mwccpsp,
+mwccarm and mwcceppc, ARM armcc, SN Systems SNC): source forms that give a known
+code shape, by symptom. Each entry names the compiler and the functions it was
+proven on; on another compiler it is a hypothesis until a function confirms it.
+
 Provenance
 ==========
 
