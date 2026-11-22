@@ -103,21 +103,23 @@ def draw_badges(report, out_dir):
 
 def symbol_addresses(version):
     """{name: address} of the functions named in the symbol files of a version
-    (`[paths] symbol_files`, lines `name = 0xADDR;`).
+    (`[paths] symbol_files`): splat lines `name = 0xADDR;`, or ds-decomp lines
+    `name kind:function(...) addr:0xADDR` (data symbols of that format are skipped).
     The objdiff report gives section offsets, not addresses; func_<addr> names carry
     their address (function_address)."""
     addrs = {}
     for path in config.symbol_files(version):
         with open(path, encoding="utf-8") as f:
             for line in f:
-                m = re.match(r"\s*(\S+)\s*=\s*(0x[0-9a-fA-F]+);", line)
+                m = (re.match(r"\s*(\S+)\s*=\s*(0x[0-9a-fA-F]+);", line)
+                     or re.match(r"(\S+) kind:function\S* addr:(0x[0-9a-fA-F]+)", line))
                 if m:
                     addrs.setdefault(m.group(1), int(m.group(2), 16))
     return addrs
 
 
 def function_address(name, addrs):
-    m = re.fullmatch(r"func_([0-9A-F]{8})", name)
+    m = re.fullmatch(r"func_([0-9A-Fa-f]{8})", name)
     return int(m.group(1), 16) if m else addrs.get(name, 0)
 
 
