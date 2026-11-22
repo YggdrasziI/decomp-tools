@@ -21,6 +21,8 @@ Keys read here (a platform tool set may read more from the same file):
     [compiler]                            # optional: compiler of the C/C++ units
     name = "mwccpsp_3.0.1_219"            # tools/compilers/<name>/
     exe = "mwccpsp.exe"
+    # or: path = "tools/mwccarm/2.0/sp1p5/mwccarm.exe" (from the project root,
+    # for compilers kept elsewhere; name and exe are then not read)
     flags = "-O4"                         # code generation flags, no include paths
 
     [try]                                 # optional: try_unit.py
@@ -100,6 +102,9 @@ def compiler() -> tuple[list[str], list[str]]:
     cc = CONFIG.get("compiler")
     if not cc:
         sys.exit("decomp.toml: no [compiler] section")
-    exe = ROOT / "tools" / "compilers" / cc["name"] / cc["exe"]
+    if "path" in cc:
+        exe = ROOT / cc["path"]
+    else:
+        exe = ROOT / "tools" / "compilers" / cc["name"] / cc["exe"]
     command = [str(exe)] if os.name == "nt" else [str(ROOT / "tools" / "wibo"), str(exe)]
     return command, cc.get("flags", "").split()
