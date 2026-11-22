@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw the README progress badges from the objdiff report, without decomp.dev.
+r"""Draw the README progress badges from the objdiff report, without decomp.dev.
 
 Outputs, one folder per game version (shield-style SVG, one per measure, all code of
 the built modules; regions come from decomp.toml):
@@ -7,8 +7,9 @@ the built modules; regions come from decomp.toml):
   progress/<version>/perfect.svg  perfectly matched code    (matched_code_percent)
   progress/<version>/linked.svg   code linked from source (complete_code_percent)
   progress/<version>/card.svg     progress card: code, data and functions, then code
-                                  by region (decomp.toml [regions]), each as a stacked bar (fuzzy,
-                                  perfect, linked) with perfect / total counts
+                                  by region (decomp.toml [regions]) and by module
+                                  ([progress] module_files), each as a stacked bar
+                                  (fuzzy, perfect, linked) with perfect / total counts
   progress/<version>/history.csv  one line per --record, for the HEAD commit: record
                                   after committing the unit, then commit progress/
 
@@ -16,6 +17,21 @@ Usage:
   python tools/common/progress_badges.py                      # draw from the objdiff report
   python tools/common/progress_badges.py --record             # also append the current state to history.csv
   python tools/common/progress_badges.py --version <ID>       # game version (default: first of decomp.toml)
+
+decomp.toml `[progress]` (all optional; without module_files the card has no module
+rows):
+  region_title = "Code by region"      # heading of the region rows
+  module_files = "config/{version}/arm9/**/delinks.txt"
+                                       # ds-decomp delinks files: the module of a source
+                                       # unit is the folder of the file that lists it
+  module_folders = { arm9 = "main" }   # folder -> module name, as in the gap unit names
+  gap_unit = '_dsd_gap@(\w+?)_\d+$'    # module of an automatic unit, from its name
+  apart = 'ov\d+'                      # modules whose addresses overlap (overlays): left
+                                       # out of the regions; with regions, only these get
+                                       # a module row
+  module_title = "Code by module"      # heading of the module rows
+  [progress.module_labels]             # row labels, in this order first
+  main = "Main"
 """
 
 import argparse
@@ -32,6 +48,7 @@ import decomp_config as config
 ROOT = str(config.ROOT)
 GAME_TITLE = config.TITLE
 DEFAULT_VERSION = config.DEFAULT_VERSION
+PROGRESS = config.CONFIG.get("progress", {})
 
 # (file name, label, report measure, color)
 BADGES = [
@@ -123,15 +140,79 @@ def function_address(name, addrs):
     return int(m.group(1), 16) if m else addrs.get(name, 0)
 
 
+def unit_sources(version):
+    """{source path: module} from the module files (`[progress] module_files`):
+    `<path>:` lines of ds-decomp delinks.txt files; the module is the file's folder
+    name, renamed by `module_folders`."""
+    pattern = PROGRESS.get("module_files")
+    if not pattern:
+        return {}
+    renames = PROGRESS.get("module_folders", {})
+    sources = {}
+    for path in sorted(config.ROOT.glob(pattern.replace("{version}", version))):
+        module = renames.get(path.parent.name, path.parent.name)
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r"(\S+\.(?:c|cc|cp|cpp|s)):\s*$", line)
+                if m:
+                    sources[m.group(1)] = module
+    return sources
+
+
+def unit_module(unit, sources):
+    """Module of a report unit: from its name for an automatic unit (`gap_unit`),
+    else from the module file that lists its source; "other" when neither says."""
+    m = re.match(PROGRESS.get("gap_unit", r"_dsd_gap@(\w+?)_\d+$"), unit["name"])
+    if m:
+        return m.group(1)
+    return sources.get(unit.get("metadata", {}).get("source_path", ""), "other")
+
+
+def is_apart(module):
+    apart = PROGRESS.get("apart")
+    return bool(apart) and re.fullmatch(apart, module) is not None
+
+
+def module_measures(report, version, apart_only=False):
+    """[(label, total, fuzzy, perfect, linked)] code bytes per module. Modules come
+    from unit names and module files, not addresses: overlays share theirs."""
+    if not PROGRESS.get("module_files"):
+        return []
+    sources = unit_sources(version)
+    labels = PROGRESS.get("module_labels", {})
+    sums = {}
+    for unit in report.get("units", []):
+        module = unit_module(unit, sources)
+        if apart_only and not is_apart(module):
+            continue
+        total = int(unit.get("measures", {}).get("total_code", 0) or 0)
+        if not total:
+            continue
+        acc = sums.setdefault(module, [0, 0.0, 0, 0])
+        for fn in unit.get("functions", []):
+            size = int(fn.get("size", 0))
+            score = float(fn.get("fuzzy_match_percent", 0.0) or 0.0)
+            acc[1] += size * score / 100
+            acc[2] += size if score == 100 else 0
+        acc[0] += total
+        acc[3] += total if unit.get("metadata", {}).get("complete") else 0
+    order = [k for k in labels if k in sums] + sorted(k for k in sums if k not in labels)
+    return [(labels.get(k, k), *sums[k]) for k in order]
+
+
 def region_measures(report, regions, version):
     """[(label, total, fuzzy, perfect, linked)] code bytes per region, from every
-    function of the report (split or not), placed by its address."""
+    function of the report (split or not), placed by its address. Units of the
+    modules kept apart (overlays) are left out: their addresses overlap."""
     if not regions:
         return []
     addrs = symbol_addresses(version)
+    sources = unit_sources(version) if PROGRESS.get("apart") else {}
     sums = {label: [0, 0.0, 0, 0] for label, _ in regions}
     other = [0, 0.0, 0, 0]
     for unit in report.get("units", []):
+        if sources and is_apart(unit_module(unit, sources)):
+            continue
         linked = bool(unit.get("metadata", {}).get("complete"))
         for fn in unit.get("functions", []):
             # The report gives the address when the objects carry it; otherwise
@@ -174,6 +255,8 @@ def card(report, version, commit):
          num("matched_functions"), linked_functions(report), ""),
     ]
     regions = [(*row, "bytes") for row in region_measures(report, config.regions(version), version)]
+    # With regions, the module rows keep the modules apart (overlays) only
+    modules = [(*row, "bytes") for row in module_measures(report, version, apart_only=bool(regions))]
 
     width, bar_x, bar_w, row_h = 760, 186, 300, 26
     y = 34
@@ -201,9 +284,17 @@ def card(report, version, commit):
         bar_row(*row)
     if regions:
         y += 16
-        body.append(f'<text class="t b" x="16" y="{y + row_h - 8}">Code by region</text>')
+        title = escape(PROGRESS.get("region_title", "Code by region"))
+        body.append(f'<text class="t b" x="16" y="{y + row_h - 8}">{title}</text>')
         y += row_h - 8
         for row in regions:
+            bar_row(*row)
+    if modules:
+        y += 16
+        title = escape(PROGRESS.get("module_title", "Code by module"))
+        body.append(f'<text class="t b" x="16" y="{y + row_h - 8}">{title}</text>')
+        y += row_h - 8
+        for row in modules:
             bar_row(*row)
     y += 30
     lx = 16

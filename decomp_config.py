@@ -18,6 +18,9 @@ Keys read here (a platform tool set may read more from the same file):
     [regions.ULES01213]                   # optional: code regions of the progress card
     "Game" = [[0x08804000, 0x0890DE38]]
 
+    [progress]                            # optional: progress card (progress_badges.py)
+    module_files = "config/{version}/arm9/**/delinks.txt"   # code by module rows
+
     [compiler]                            # optional: compiler of the C/C++ units
     name = "mwccpsp_3.0.1_219"            # tools/compilers/<name>/
     exe = "mwccpsp.exe"

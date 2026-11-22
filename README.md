@@ -48,7 +48,7 @@ Tools
 | `asm_compare.py` | One function side by side, from `objdiff-cli diff`; `--objects` compares any two objects |
 | `try_unit.py` | Compile one source file outside the build and score one function against the original (`[try]` in `decomp.toml`); safe to run many at once |
 | `report_diff.py` | Regression gate between two objdiff reports |
-| `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` in `decomp.toml`) |
+| `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` and `[progress]` in `decomp.toml`: code by region, and by module or overlay for ds-decomp projects) |
 | `check_traces.py` | Pre-commit / CI guard against local paths, attribution trailers and private files |
 | `sha1.py` | Check the files of a sha1sum-format list, or one file against its first checksum (`-c`) |
 | `ninja_syntax.py` | Writer for `build.ninja` |
