@@ -51,6 +51,28 @@ def unit_name(short):
     return matches[0]
 
 
+def run_diff(cmd_head, symbol):
+    """objdiff-cli's JSON diff of one symbol; cmd_head selects the unit or the
+    objects (unit_cmd, objects_cmd). Other tools import these three."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out_json = os.path.join(tmp, "diff.json")
+        cmd = cmd_head + [symbol, "-o", out_json, "--format", "json"]
+        res = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
+        if res.returncode != 0 or not os.path.exists(out_json):
+            sys.exit(res.stderr.strip() or "objdiff-cli diff failed")
+        with open(out_json, encoding="utf-8") as f:
+            return json.load(f)
+
+
+def unit_cmd(unit):
+    return [OBJDIFF, "diff", "-p", ROOT, "-u", unit_name(unit)]
+
+
+def objects_cmd(original, ours):
+    # objdiff-cli runs in ROOT: paths are taken from the caller's directory
+    return [OBJDIFF, "diff", "-1", os.path.abspath(original), "-2", os.path.abspath(ours)]
+
+
 def rows(symbol_json):
     out = []
     for ins in symbol_json.get("instructions", []):
@@ -66,26 +88,16 @@ def main():
     parser.add_argument("--objects", nargs=2, metavar=("ORIGINAL", "OURS"))
     opts = parser.parse_args()
 
-    with tempfile.TemporaryDirectory() as tmp:
-        out_json = os.path.join(tmp, "diff.json")
-        if opts.objects:
-            if len(opts.args) != 1:
-                sys.exit("with --objects give only the symbol")
-            symbol = opts.args[0]
-            # objdiff-cli runs in ROOT: paths are taken from the caller's directory
-            cmd = [OBJDIFF, "diff", "-1", os.path.abspath(opts.objects[0]),
-                   "-2", os.path.abspath(opts.objects[1])]
-        else:
-            if len(opts.args) != 2:
-                sys.exit(__doc__)
-            symbol = opts.args[1]
-            cmd = [OBJDIFF, "diff", "-p", ROOT, "-u", unit_name(opts.args[0])]
-        cmd += [symbol, "-o", out_json, "--format", "json"]
-        res = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
-        if res.returncode != 0 or not os.path.exists(out_json):
-            sys.exit(res.stderr.strip() or "objdiff-cli diff failed")
-        with open(out_json, encoding="utf-8") as f:
-            diff = json.load(f)
+    if opts.objects:
+        if len(opts.args) != 1:
+            sys.exit("with --objects give only the symbol")
+        symbol = opts.args[0]
+        diff = run_diff(objects_cmd(*opts.objects), symbol)
+    else:
+        if len(opts.args) != 2:
+            sys.exit(__doc__)
+        symbol = opts.args[1]
+        diff = run_diff(unit_cmd(opts.args[0]), symbol)
 
     sides = []
     for side in ("left", "right"):
