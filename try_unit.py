@@ -17,6 +17,7 @@ decomp.toml:
 
     [try]
     compile = "{cc} -c {flags} -Iinclude -Isrc -o {obj} {src}"
+    then = "{python} tools/prelink.py --unit {piece}{suffix} {obj} -o {obj}"   # optional
     target = "build/{version}/obj/{piece}.o"
 
     [try.suffix_flags]                 # optional: {suffix_flags} by source suffix
@@ -26,7 +27,9 @@ decomp.toml:
 Placeholders of `compile`: {cc} and {flags} (the `[compiler]` command and flags),
 {suffix_flags} (the `[try.suffix_flags]` entry of the source's suffix, none if
 missing), {python} (this interpreter), {exe} (`.exe` on Windows, else empty), {src},
-{obj}, {version}. Of `target`: {version},
+{obj}, {version}. `then` (optional) runs after the compile, with the same
+placeholders plus {piece} and {suffix} (the source's suffix, e.g. `.cpp`): for a
+build that changes the compiled object before comparing it. Of `target`: {version},
 {piece} (the name of the original piece that holds the function).
 """
 
@@ -73,21 +76,31 @@ def main():
     many = {"{cc}": cc, "{flags}": flags, "{suffix_flags}": suffix_flags}
     one = {"{python}": sys.executable, "{src}": str(src), "{obj}": str(obj),
            "{version}": args.version, "{exe}": ".exe" if os.name == "nt" else ""}
-    command = []
-    for token in shlex.split(settings["compile"]):
-        if token in many:
-            command += many[token]
-            continue
-        for key, value in one.items():
-            token = token.replace(key, value)
-        command.append(token)
+
+    def expand(line):
+        command = []
+        for token in shlex.split(line):
+            if token in many:
+                command += many[token]
+                continue
+            for key, value in one.items():
+                token = token.replace(key, value)
+            command.append(token)
+        return command
 
     obj.unlink(missing_ok=True)
-    res = subprocess.run(command, capture_output=True, text=True, cwd=config.ROOT)
+    res = subprocess.run(expand(settings["compile"]), capture_output=True, text=True, cwd=config.ROOT)
     if res.returncode or not obj.is_file():
         print("COMPILE ERROR")
         print((res.stdout + res.stderr)[-3000:])
         return 1
+    if "then" in settings:
+        one.update({"{piece}": args.piece, "{suffix}": src.suffix})
+        res = subprocess.run(expand(settings["then"]), capture_output=True, text=True, cwd=config.ROOT)
+        if res.returncode or not obj.is_file():
+            print("THEN STEP ERROR")
+            print((res.stdout + res.stderr)[-3000:])
+            return 1
 
     diff = subprocess.run(
         [sys.executable, str(config.TOOLS / "asm_compare.py"), "--objects", str(target), str(obj),
