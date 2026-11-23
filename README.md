@@ -20,6 +20,7 @@ Projects using it:
 - [jd-tlf-decomp](https://github.com/YggdrasziI/jd-tlf-decomp): Jak and Daxter: The Lost Frontier (PSP)
 - [ts2-castaway-decomp](https://github.com/YggdrasziI/ts2-castaway-decomp): The Sims 2: Castaway (Nintendo DS)
 - [dqmj2-decomp](https://github.com/YggdrasziI/dqmj2-decomp): Dragon Quest Monsters: Joker 2 (Nintendo DS)
+- [dqmj3-decomp](https://github.com/YggdrasziI/dqmj3-decomp): Dragon Quest Monsters: Joker 3 (Nintendo 3DS)
 
 Setup
 =====
@@ -46,10 +47,10 @@ Tools
 
 | Tool | Purpose |
 |---|---|
-| `asm_compare.py` | One function side by side, from `objdiff-cli diff`; `--objects` compares any two objects |
-| `try_unit.py` | Compile one source file outside the build and score one function against the original (`[try]` in `decomp.toml`); safe to run many at once |
+| `asm_compare.py` | One function side by side, from `objdiff-cli diff`; `--objects` compares any two objects; `run_diff`, `unit_cmd` and `objects_cmd` for other scripts |
+| `try_unit.py` | Compile one source file outside the build and score one function against the original (`[try]` in `decomp.toml`, with an optional `then` step on the object); safe to run many at once |
 | `report_diff.py` | Regression gate between two objdiff reports |
-| `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` and `[progress]` in `decomp.toml`: code by region, and by module or overlay for ds-decomp projects) |
+| `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` and `[progress]` in `decomp.toml`: code by region, by module or overlay for ds-decomp projects, or by the report's progress categories) |
 | `check_traces.py` | Pre-commit / CI guard against local paths, attribution trailers and private files |
 | `sha1.py` | Check the files of a sha1sum-format list, or one file against its first checksum (`-c`) |
 | `ninja_syntax.py` | Writer for `build.ninja` |
