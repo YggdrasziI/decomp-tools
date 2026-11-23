@@ -8,7 +8,8 @@ the built modules; regions come from decomp.toml):
   progress/<version>/linked.svg   code linked from source (complete_code_percent)
   progress/<version>/card.svg     progress card: code, data and functions, then code
                                   by region (decomp.toml [regions]) and by module
-                                  ([progress] module_files), each as a stacked bar
+                                  ([progress] module_files), or by the report's
+                                  progress categories, each as a stacked bar
                                   (fuzzy, perfect, linked) with perfect / total counts
   progress/<version>/history.csv  one line per --record, for the HEAD commit: record
                                   after committing the unit, then commit progress/
@@ -18,8 +19,12 @@ Usage:
   python tools/common/progress_badges.py --record             # also append the current state to history.csv
   python tools/common/progress_badges.py --version <ID>       # game version (default: first of decomp.toml)
 
-decomp.toml `[progress]` (all optional; without module_files the card has no module
-rows):
+decomp.toml `[paths] progress_report`: the report read here, when it is not
+`[paths] report`. `[progress]` (all optional; without module_files the card has no
+module rows):
+  rows = "categories"                  # rows from the report's progress categories
+                                       # (objdiff.json), then the code no category
+                                       # claims; regions and modules are not read
   region_title = "Code by region"      # heading of the region rows
   module_files = "config/{version}/arm9/**/delinks.txt"
                                        # ds-decomp delinks files: the module of a source
@@ -233,6 +238,24 @@ def region_measures(report, regions, version):
     return rows
 
 
+def category_measures(report):
+    """[(label, total, fuzzy, perfect, linked)] code bytes per progress category of
+    the report, then the code no category claims yet."""
+    total = int(report["measures"].get("total_code", 0) or 0)
+    rows, claimed = [], 0
+    for cat in report.get("categories", []):
+        m = cat.get("measures", {})
+        size = int(m.get("total_code", 0) or 0)
+        if not size:
+            continue
+        claimed += size
+        rows.append((cat.get("name", cat.get("id", "?")), size, pct(m, "fuzzy_match_percent") / 100 * size,
+                     int(m.get("matched_code", 0) or 0), int(m.get("complete_code", 0) or 0)))
+    if total > claimed:
+        rows.append(("Not attributed yet", total - claimed, 0, 0, 0))
+    return rows
+
+
 def linked_functions(report):
     return sum(len(u.get("functions", [])) for u in report.get("units", [])
                if u.get("metadata", {}).get("complete"))
@@ -254,9 +277,14 @@ def card(report, version, commit):
         ("Functions", num("total_functions"), num("matched_functions"),
          num("matched_functions"), linked_functions(report), ""),
     ]
-    regions = [(*row, "bytes") for row in region_measures(report, config.regions(version), version)]
-    # With regions, the module rows keep the modules apart (overlays) only
-    modules = [(*row, "bytes") for row in module_measures(report, version, apart_only=bool(regions))]
+    by_category = PROGRESS.get("rows") == "categories"
+    if by_category:
+        regions = []
+        modules = [(*row, "bytes") for row in category_measures(report)]
+    else:
+        regions = [(*row, "bytes") for row in region_measures(report, config.regions(version), version)]
+        # With regions, the module rows keep the modules apart (overlays) only
+        modules = [(*row, "bytes") for row in module_measures(report, version, apart_only=bool(regions))]
 
     width, bar_x, bar_w, row_h = 760, 186, 300, 26
     y = 34
@@ -291,7 +319,7 @@ def card(report, version, commit):
             bar_row(*row)
     if modules:
         y += 16
-        title = escape(PROGRESS.get("module_title", "Code by module"))
+        title = escape(PROGRESS.get("module_title", "Code by category" if by_category else "Code by module"))
         body.append(f'<text class="t b" x="16" y="{y + row_h - 8}">{title}</text>')
         y += row_h - 8
         for row in modules:
@@ -304,7 +332,7 @@ def card(report, version, commit):
         body.append(f'<text class="m" x="{lx + 18}" y="{y}">{text}</text>')
         lx += 18 + text_width(text) + 18
     body.append(f'<text class="m" x="{width - 16}" y="{y}" text-anchor="end">'
-                f'counts: perfect / total; region bounds are approximate</text>')
+                f'counts: perfect / total{"" if by_category else "; region bounds are approximate"}</text>')
     height = y + 18
 
     def rules(i):
@@ -373,14 +401,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", default=DEFAULT_VERSION,
                         help="game version (default: %(default)s)")
-    parser.add_argument("--report", help="objdiff report (default: `[paths] report` of decomp.toml)")
+    parser.add_argument("--report", help="objdiff report (default: `[paths] progress_report`, else `report`, of decomp.toml)")
     parser.add_argument("--out", help="badge folder (default: progress/<version>)")
     parser.add_argument("--history", help="history file (default: progress/<version>/history.csv)")
     parser.add_argument("--record", action="store_true", help="append the current state to history.csv")
     args = parser.parse_args()
 
     if args.report is None:
-        args.report = str(config.report(args.version))
+        args.report = str(config.progress_report(args.version))
     if args.out is None:
         args.out = os.path.join(ROOT, "progress", args.version)
     if args.history is None:

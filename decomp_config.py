@@ -12,6 +12,8 @@ Keys read here (a platform tool set may read more from the same file):
     [paths]                               # optional, {version} is replaced
     report = "build/{version}/report.json"
     report_base = "build/{version}/report_base.json"
+    progress_report = "build/{version}/tracker/report.json"   # optional: the progress
+                                          # card's report, when not `report`
     objdiff_cli = "objdiff-cli"           # .exe is added on Windows
     symbol_files = "config/{version}/symbol_addrs*.txt"   # `name = 0xADDR;` lines
 
@@ -76,6 +78,13 @@ def path_setting(key: str, version: str = "") -> str:
 
 def report(version: str) -> Path:
     return ROOT / path_setting("report", version)
+
+
+def progress_report(version: str) -> Path:
+    """The report the progress card reads: `[paths] progress_report`, else `report`."""
+    if "progress_report" in CONFIG.get("paths", {}):
+        return ROOT / CONFIG["paths"]["progress_report"].replace("{version}", version)
+    return report(version)
 
 
 def report_base(version: str) -> Path:
