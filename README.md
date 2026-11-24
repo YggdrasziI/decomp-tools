@@ -21,6 +21,7 @@ Projects using it:
 - [ts2-castaway-decomp](https://github.com/YggdrasziI/ts2-castaway-decomp): The Sims 2: Castaway (Nintendo DS)
 - [dqmj2-decomp](https://github.com/YggdrasziI/dqmj2-decomp): Dragon Quest Monsters: Joker 2 (Nintendo DS)
 - [dqmj3-decomp](https://github.com/YggdrasziI/dqmj3-decomp): Dragon Quest Monsters: Joker 3 (Nintendo 3DS)
+- [mlab-decomp](https://github.com/YggdrasziI/mlab-decomp): Monster Lab (Wii)
 
 Setup
 =====
