@@ -71,8 +71,8 @@ def main():
 
     cc, flags = config.compiler()
     if args.flags is not None:
-        flags = args.flags.split()
-    suffix_flags = settings.get("suffix_flags", {}).get(src.suffix, "").split()
+        flags = shlex.split(args.flags)
+    suffix_flags = shlex.split(settings.get("suffix_flags", {}).get(src.suffix, ""))
     many = {"{cc}": cc, "{flags}": flags, "{suffix_flags}": suffix_flags}
     one = {"{python}": sys.executable, "{src}": str(src), "{obj}": str(obj),
            "{version}": args.version, "{exe}": ".exe" if os.name == "nt" else ""}

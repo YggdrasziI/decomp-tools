@@ -28,7 +28,8 @@ Keys read here (a platform tool set may read more from the same file):
     exe = "mwccpsp.exe"
     # or: path = "tools/mwccarm/2.0/sp1p5/mwccarm.exe" (from the project root,
     # for compilers kept elsewhere; name and exe are then not read)
-    flags = "-O4"                         # code generation flags, no include paths
+    flags = "-O4"                         # code generation flags, no include paths;
+                                          # quotes group words: -pragma "cats off"
 
     [try]                                 # optional: try_unit.py
     compile = "{cc} -c {flags} -Iinclude -o {obj} {src}"
@@ -39,6 +40,7 @@ Keys read here (a platform tool set may read more from the same file):
 """
 
 import os
+import shlex
 import sys
 import tomllib
 from pathlib import Path
@@ -110,7 +112,8 @@ def regions(version: str) -> list:
 
 def compiler() -> tuple[list[str], list[str]]:
     """([command], [flags]) of the [compiler] of decomp.toml, wibo first off Windows.
-    The flags are the code generation ones; include paths are added by the caller."""
+    The flags are the code generation ones; include paths are added by the caller.
+    They are split as a shell would (quotes kept together: -pragma "cats off")."""
     cc = CONFIG.get("compiler")
     if not cc:
         sys.exit("decomp.toml: no [compiler] section")
@@ -119,4 +122,4 @@ def compiler() -> tuple[list[str], list[str]]:
     else:
         exe = ROOT / "tools" / "compilers" / cc["name"] / cc["exe"]
     command = [str(exe)] if os.name == "nt" else [str(ROOT / "tools" / "wibo"), str(exe)]
-    return command, cc.get("flags", "").split()
+    return command, shlex.split(cc.get("flags", ""))
