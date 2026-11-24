@@ -28,6 +28,8 @@ Keys read here (a platform tool set may read more from the same file):
     exe = "mwccpsp.exe"
     # or: path = "tools/mwccarm/2.0/sp1p5/mwccarm.exe" (from the project root,
     # for compilers kept elsewhere; name and exe are then not read)
+    # or: linux = "~/gcc/bin/psp-gcc" (a Linux program, run by linux_run.py:
+    # directly on Linux, through WSL on Windows; name and exe are then not read)
     flags = "-O4"                         # code generation flags, no include paths;
                                           # quotes group words: -pragma "cats off"
 
@@ -110,6 +112,14 @@ def regions(version: str) -> list:
             for label, ranges in CONFIG.get("regions", {}).get(version, {}).items()]
 
 
+def linux_command(program: str) -> list[str]:
+    """Command that runs a Linux program here: itself on Linux, linux_run.py (WSL)
+    on Windows. `~/` is the Linux home."""
+    if os.name == "nt":
+        return [sys.executable, str(TOOLS / "linux_run.py"), program]
+    return [os.path.expanduser(program)]
+
+
 def compiler() -> tuple[list[str], list[str]]:
     """([command], [flags]) of the [compiler] of decomp.toml, wibo first off Windows.
     The flags are the code generation ones; include paths are added by the caller.
@@ -117,6 +127,8 @@ def compiler() -> tuple[list[str], list[str]]:
     cc = CONFIG.get("compiler")
     if not cc:
         sys.exit("decomp.toml: no [compiler] section")
+    if "linux" in cc:
+        return linux_command(cc["linux"]), shlex.split(cc.get("flags", ""))
     if "path" in cc:
         exe = ROOT / cc["path"]
     else:
