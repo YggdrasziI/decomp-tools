@@ -11,8 +11,10 @@ decomp-tools
 Tooling shared by matching decompilation projects, whatever the platform: what
 only needs an [objdiff](https://github.com/encounter/objdiff) report, two objects
 or a git repository. It is meant to be used as a git submodule at `tools/common/`
-of a project, next to the tools of its platform (for PSP:
-[psp-decomp-tools](https://github.com/YggdrasziI/psp-decomp-tools)).
+of a project, next to the tools of its platform when it has some:
+[psp-decomp-tools](https://github.com/YggdrasziI/psp-decomp-tools) (PSP),
+[nds-decomp-tools](https://github.com/YggdrasziI/nds-decomp-tools) (Nintendo DS),
+[wii-decomp-tools](https://github.com/YggdrasziI/wii-decomp-tools) (Wii).
 
 Projects using it:
 
@@ -20,8 +22,10 @@ Projects using it:
 - [jd-tlf-decomp](https://github.com/YggdrasziI/jd-tlf-decomp): Jak and Daxter: The Lost Frontier (PSP)
 - [ts2-castaway-decomp](https://github.com/YggdrasziI/ts2-castaway-decomp): The Sims 2: Castaway (Nintendo DS)
 - [dqmj2-decomp](https://github.com/YggdrasziI/dqmj2-decomp): Dragon Quest Monsters: Joker 2 (Nintendo DS)
+- [dqmj2p-decomp](https://github.com/YggdrasziI/dqmj2p-decomp): Dragon Quest Monsters: Joker 2 Professional (Nintendo DS)
 - [dqmj3-decomp](https://github.com/YggdrasziI/dqmj3-decomp): Dragon Quest Monsters: Joker 3 (Nintendo 3DS)
 - [mlab-decomp](https://github.com/YggdrasziI/mlab-decomp): Monster Lab (Wii)
+- [spyro-dotd-decomp](https://github.com/YggdrasziI/spyro-dotd-decomp): The Legend of Spyro: Dawn of the Dragon (Wii)
 
 Setup
 =====
