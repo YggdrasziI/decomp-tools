@@ -27,10 +27,11 @@ decomp.toml:
 Placeholders of `compile`: {cc} and {flags} (the `[compiler]` command and flags),
 {suffix_flags} (the `[try.suffix_flags]` entry of the source's suffix, none if
 missing), {python} (this interpreter), {exe} (`.exe` on Windows, else empty), {src},
-{obj}, {version}. `then` (optional) runs after the compile, with the same
-placeholders plus {piece} and {suffix} (the source's suffix, e.g. `.cpp`): for a
-build that changes the compiled object before comparing it. Of `target`: {version},
-{piece} (the name of the original piece that holds the function).
+{obj}, {version}, {version_index} (the version's index in `versions` of
+decomp.toml, e.g. for a BUILD_VERSION define). `then` (optional) runs after the
+compile, with the same placeholders plus {piece} and {suffix} (the source's suffix,
+e.g. `.cpp`): for a build that changes the compiled object before comparing it. Of
+`target`: {version}, {piece} (the name of the original piece that holds the function).
 """
 
 import argparse
@@ -49,7 +50,7 @@ def main():
     parser.add_argument("piece", help="original piece that holds the function ({piece} of [try] target)")
     parser.add_argument("source", type=Path)
     parser.add_argument("--full", action="store_true", help="print every line, not only the differing ones")
-    parser.add_argument("--version", default=config.DEFAULT_VERSION)
+    parser.add_argument("--version", default=config.DEFAULT_VERSION, choices=config.VERSIONS)
     parser.add_argument("--flags", help="code generation flags instead of [compiler] flags")
     parser.add_argument("--in-repo", action="store_true",
                         help="accept a source inside the repository (its object is written next to it)")
@@ -75,7 +76,8 @@ def main():
     suffix_flags = shlex.split(settings.get("suffix_flags", {}).get(src.suffix, ""))
     many = {"{cc}": cc, "{flags}": flags, "{suffix_flags}": suffix_flags}
     one = {"{python}": sys.executable, "{src}": str(src), "{obj}": str(obj),
-           "{version}": args.version, "{exe}": ".exe" if os.name == "nt" else ""}
+           "{version}": args.version, "{version_index}": str(config.VERSIONS.index(args.version)),
+           "{exe}": ".exe" if os.name == "nt" else ""}
 
     def expand(line):
         command = []
@@ -86,6 +88,10 @@ def main():
             for key, value in one.items():
                 token = token.replace(key, value)
             command.append(token)
+        # A program given relative to the project root (build/tools/sjiswrap.exe):
+        # Windows does not look it up from the working directory when it has slashes.
+        if command and not os.path.isabs(command[0]) and (config.ROOT / command[0]).is_file():
+            command[0] = str(config.ROOT / command[0])
         return command
 
     obj.unlink(missing_ok=True)
