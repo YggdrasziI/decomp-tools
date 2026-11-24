@@ -47,7 +47,7 @@ Tools
 
 | Tool | Purpose |
 |---|---|
-| `asm_compare.py` | One function side by side, from `objdiff-cli diff`; `--objects` compares any two objects; `run_diff`, `unit_cmd` and `objects_cmd` for other scripts |
+| `asm_compare.py` | One function side by side, from `objdiff-cli diff`; `--objects` compares any two objects; a third name is the original symbol when ours differs; `run_diff`, `unit_cmd` and `objects_cmd` for other scripts |
 | `try_unit.py` | Compile one source file outside the build and score one function against the original (`[try]` in `decomp.toml`, with an optional `then` step on the object); safe to run many at once |
 | `report_diff.py` | Regression gate between two objdiff reports |
 | `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` and `[progress]` in `decomp.toml`: code by region, by module or overlay for ds-decomp projects, or by the report's progress categories) |

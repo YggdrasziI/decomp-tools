@@ -11,6 +11,11 @@ Usage:
   python tools/common/asm_compare.py unit_000960A4 func_000960D0
   python tools/common/asm_compare.py text_0009630C func_0009630C      # assembly piece: original only
   python tools/common/asm_compare.py --objects <original.o> <ours.o> func_000960D0
+  python tools/common/asm_compare.py unit_8032E43C <our symbol> <original symbol>
+
+A third name is the original's symbol when ours is named differently (before the
+symbol file is renamed): objdiff does not pair the two, so each side comes from its
+own diff and only the opcodes are compared ('o').
 
 Needs `objdiff.json` (`python tools/configure.py`) and a built unit (`ninja`); with
 --objects any two ELF objects are compared (e.g. a scratch variant against the
@@ -84,36 +89,52 @@ def rows(symbol_json):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("args", nargs="+", help="<unit> <symbol>, or <symbol> with --objects")
+    parser.add_argument("args", nargs="+",
+                        help="<unit> <symbol> [<original symbol>], or <symbol> [<original symbol>] with --objects")
     parser.add_argument("--objects", nargs=2, metavar=("ORIGINAL", "OURS"))
     opts = parser.parse_args()
 
     if opts.objects:
-        if len(opts.args) != 1:
-            sys.exit("with --objects give only the symbol")
-        symbol = opts.args[0]
-        diff = run_diff(objects_cmd(*opts.objects), symbol)
+        cmd_head, names = objects_cmd(*opts.objects), opts.args
     else:
-        if len(opts.args) != 2:
-            sys.exit(__doc__)
-        symbol = opts.args[1]
-        diff = run_diff(unit_cmd(opts.args[0]), symbol)
+        cmd_head, names = unit_cmd(opts.args[0]) if opts.args else None, opts.args[1:]
+    if not 1 <= len(names) <= 2:
+        sys.exit(__doc__)
+    symbol = names[0]
+    original = names[1] if len(names) == 2 else symbol
 
-    sides = []
-    for side in ("left", "right"):
+    def side(diff, side_name, name):
         # An assembly piece (asm/<module>/text*) has no right side.
-        found = [s for s in diff.get(side, {}).get("symbols", []) if s.get("name") == symbol]
-        sides.append(found[0] if found else {})
+        found = [s for s in diff.get(side_name, {}).get("symbols", []) if s.get("name") == name]
+        return found[0] if found else {}
+
+    diff = run_diff(cmd_head, symbol)
+    if original == symbol:
+        sides = [side(diff, "left", symbol), side(diff, "right", symbol)]
+    else:
+        sides = [side(run_diff(cmd_head, original), "left", original), side(diff, "right", symbol)]
+        if not sides[0]:
+            sys.exit(f"{original} not found in the original")
+        if not sides[1]:
+            sys.exit(f"{symbol} not found in our build")
     if not sides[0] and not sides[1]:
         sys.exit(f"{symbol} not found")
     left, right = rows(sides[0]), rows(sides[1])
     pct = sides[1].get("match_percent", sides[0].get("match_percent"))
-    print(f"{symbol}: {pct:.2f} %" if pct is not None else f"{symbol}: no match data")
+    if original != symbol:
+        print(f"{symbol} (original {original}): names differ, opcodes compared only")
+    elif pct is not None:
+        print(f"{symbol}: {pct:.2f} %")
+    else:
+        print(f"{symbol}: no match data")
     print(f"  {'original':<44} | ours")
     for i in range(max(len(left), len(right))):
         kind, a = left[i] if i < len(left) else (None, "")
         kind_b, b = right[i] if i < len(right) else (None, "")
-        mark = MARKS.get(kind or kind_b, "?")
+        if original == symbol:
+            mark = MARKS.get(kind or kind_b, "?")
+        else:
+            mark = " " if a.split(" ")[0] == b.split(" ")[0] else "o"
         print(f"{mark} {a[:44]:<44} | {b}")
 
 
