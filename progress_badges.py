@@ -26,6 +26,9 @@ module rows):
                                        # (objdiff.json), then the code no category
                                        # claims; regions and modules are not read
   region_title = "Code by region"      # heading of the region rows
+  region_note = "region bounds are approximate"
+                                       # footnote after the counts when the card has
+                                       # regions (e.g. where the bounds come from)
   module_files = "config/{version}/arm9/**/delinks.txt"
                                        # ds-decomp delinks files: the module of a source
                                        # unit is the folder of the file that lists it
@@ -331,8 +334,9 @@ def card(report, version, commit):
         body.append(f'<rect class="{cls}" x="{lx}" y="{y - 10}" width="12" height="12" rx="2"/>')
         body.append(f'<text class="m" x="{lx + 18}" y="{y}">{text}</text>')
         lx += 18 + text_width(text) + 18
+    note = "" if by_category else "; " + escape(PROGRESS.get("region_note", "region bounds are approximate"))
     body.append(f'<text class="m" x="{width - 16}" y="{y}" text-anchor="end">'
-                f'counts: perfect / total{"" if by_category else "; region bounds are approximate"}</text>')
+                f'counts: perfect / total{note}</text>')
     height = y + 18
 
     def rules(i):
