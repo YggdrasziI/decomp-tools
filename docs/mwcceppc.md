@@ -33,6 +33,7 @@ Tags: `[source-level]` the lever is how the C/C++ is written and may behave the 
 
 - **A value is stored to a global, then the stored register is compared (no reload)** -> compare the local, not the member again: `int id = p->mId; global = id; if (id == -1)`; comparing `p->mId` reloads it after the store -> mlab: `unit_8001EE48`. `[source-level]`
 - **Two stores of one value in the wrong order** -> `a = b = x;` stores `b` first: swap the chain -> mlab: `fn_80109A20`. `[source-level]`
+- **Three float locals set to 0.0 from one load (`lfs` into the first register, `fmr` into the next two)** -> `f32 r = 0.0f; f32 g = r; f32 b = r;`; a chained `r = g = b = 0.0f` loads into the last register instead -> mlab: `fn_8007D2C8`. `[source-level?]`
 - **Three components of a vector stored z, y, x** -> chained assignment `v.x = v.y = v.z = 1.0f`; stored x, y, z -> the three-float constructor -> mlab: `fn_8000C508`, `BuzzsawGate::vfBC`. `[source-level]`
 - **A copy of a global const vector loaded x, z, y before `+=`** -> build it with the three-float constructor: `Vec v(k.x, k.y, k.z); pos += v;` -> mlab: `fn_8013E898`. `[source-level?]`
 - **Several values read and stored straight into a struct in reading order** -> assign the members one by one; constructor arguments are evaluated right to left -> mlab: `fn_8009875C`. `[source-level]`
@@ -45,6 +46,7 @@ Tags: `[source-level]` the lever is how the C/C++ is written and may behave the 
 
 ## Types, signedness and casts
 
+- **Two bits of a nibble tested with `extrwi.` and `extrwi` + `cmpwi`, and a dead `srawi` kept** -> `int high = *p >> 4; bool hit = (high & 2) != 0;` before `if (!(high & 1)) { ... if (hit) ... }`; `high & 2` in place gives `rlwinm.`, `(high >> 1) & 1` drops the `srawi` -> mlab: `fn_8007D004`. `[back-end]`
 - **A load through a pointer parameter is scheduled above the prologue's stack stores** -> the parameter is `const T*` (the stack stores cannot alias it); a load through `T*` cannot move there. Flags, `-proc` models and compiler versions do not change this -> mlab: `unit_80018C04`, `unit_80077B50`. `[source-level]`
 - **A member load above the prologue in a member function** (`lfs` before `stwu`), **or a member reused where a non-const `this` reloads it** -> declare the function `const`, in the whole hierarchy for a virtual (mangled names become `...CFv`) -> mlab: `ExWorldTile::vfD0() const` in `unit_800C4530`, `UnkTileRing::GetHead() const`. `[source-level]`
 - **A character reloaded after the stores of a copy loop** -> the source pointer is `char*`, not `const char*` (mwcc assumes stores do not change data read through a pointer to const) -> mlab: `fn_80121508`. `[source-level]`
@@ -140,6 +142,7 @@ Tags: `[source-level]` the lever is how the C/C++ is written and may behave the 
 - **Small local arrays initialized with constants** -> they are copied from compiler-made `.sdata2` objects of the array's full size; the symbol sizes must be the array size for the section to match -> mlab: `unit_8001A17C`. `[source-level?]`
 - **An all-zero object kept in `.sdata` / `.data`** -> `#pragma explicit_zero_data on` around its definition; objects are emitted in definition order, so define it after the functions whose literals come before it -> mlab: `unit_80010B5C`. `[source-level]`
 - **A global from a shared header is the last `.bss` object of every unit although its initializer runs first** -> `.bss` follows definition order, except that objects coming from a precompiled header are emitted after the unit's own objects: build that header as a precompiled header and include it first, only in the units that have the object (tested with every GC 3.0 version; `-ipa file` and `-inline deferred` change nothing). It also fixed the order of a registered object and of function-local statics -> mlab: `unit_8013CA74`, `unit_80098664`. `[source-level]`
+- **A member store the original keeps before the struct copy of an `extern` table** (`stw` to `this`, then the table words loaded) -> declare the table without `const`: with `const` the copy cannot alias the member and the store is scheduled after it -> mlab: `fn_8007D2C8`. `[source-level?]`
 - **A unit whose `.rodata` cannot be split (link order cycle)** -> it can still match and link: its tables stay in the unsplit `.rodata` and the source declares them `extern` -> mlab: `unit_800B1498`. `[source-level]`
 - **Strings of dead-stripped functions that the original keeps in `.data`** (the linker strips the function, not the string pool) -> emit them from a stand-in function at the same place in the file -> spyro-dotd: `OSLaunch.c`. `[source-level]`
 
