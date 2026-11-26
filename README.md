@@ -56,6 +56,7 @@ Tools
 | `try_unit.py` | Compile one source file outside the build and score one function against the original (`[try]` in `decomp.toml`, with an optional `then` step on the object); safe to run many at once |
 | `linux_run.py` | Run a Linux program (a compiler built from source): directly on Linux, through WSL on Windows with Windows paths in the arguments turned into WSL paths; `linux = "~/..."` in `[compiler]` of `decomp.toml` uses it |
 | `report_diff.py` | Regression gate between two objdiff reports |
+| `compiler_sweep.py` | Narrow the exact compiler: rebuild every unit at 100 % in the report with other compiler builds (`--compiler "name_*"`) or flags (`--replace OLD NEW`), from the project's own `build.ninja` compile rules, and count the units whose code or relocations change |
 | `progress_badges.py` | README badges, progress card and history from the objdiff report (`[regions]` and `[progress]` in `decomp.toml`: code by region, by module or overlay for ds-decomp projects, or by the report's progress categories) |
 | `check_traces.py` | Pre-commit / CI guard against local paths, attribution trailers and private files |
 | `sha1.py` | Check the files of a sha1sum-format list, or one file against its first checksum (`-c`) |
